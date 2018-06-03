@@ -46,6 +46,7 @@ export const onError = (errorHandler: ErrorHandler): ApolloLink => {
               });
 
               if (retryForward) {
+                retrying = true;
                 retrySub = retryForward.subscribe({
                   next: result => observer.next(result),
                   error: networkError => observer.error(networkError),
@@ -105,7 +106,7 @@ export class ErrorLink extends ApolloLink {
 
   public request(
     operation: Operation,
-    forward: NextLink
+    forward: NextLink,
   ): Observable<FetchResult> | null {
     return this.link.request(operation, forward);
   }
