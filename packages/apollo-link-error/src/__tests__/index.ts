@@ -26,7 +26,7 @@ describe('error handling', () => {
             message: 'resolver blew up',
           },
         ],
-      }),
+      })
     );
 
     const link = errorLink.concat(mockLink);
@@ -195,6 +195,7 @@ describe('error handling', () => {
 
     setTimeout(done, 10);
   });
+
   it('includes the operation and any data along with a graphql error', done => {
     const query = gql`
       query Foo {
@@ -221,7 +222,7 @@ describe('error handling', () => {
             message: 'resolver blew up',
           },
         ],
-      }),
+      })
     );
 
     const link = errorLink.concat(mockLink);
@@ -229,6 +230,61 @@ describe('error handling', () => {
     execute(link, { query, context: { bar: true } }).subscribe(result => {
       expect(result.errors[0].message).toBe('resolver blew up');
       expect(called).toBe(true);
+      done();
+    });
+  });
+
+  it('allows re-forwarding in the error handler', done => {
+    const query = gql`
+      query Foo {
+        foo {
+          bar
+        }
+      }
+    `;
+
+    let called;
+    let retryCalled;
+    const errorLink = onError(
+      ({ graphQLErrors, response, operation, forward }) => {
+        if (!called) {
+          called = true;
+          expect(graphQLErrors[0].message).toBe('resolver blew up');
+          expect(response.data).not.toBeDefined();
+          expect(operation.operationName).toBe('Foo');
+          expect(operation.getContext().bar).toBe(true);
+          return forward(operation);
+        } else {
+          retryCalled = true;
+          expect(response.data.foo).toBe(true);
+        }
+      }
+    );
+
+    const mockLink = new ApolloLink(operation =>
+      Observable.of(
+        // original response with errors
+        {
+          errors: [
+            {
+              message: 'resolver blew up',
+            },
+          ],
+        },
+        // simulate a second response after retrying
+        {
+          data: { foo: true },
+          errors: [],
+        }
+      )
+    );
+
+    const link = errorLink.concat(mockLink);
+
+    execute(link, { query, context: { bar: true } }).subscribe(result => {
+      expect(result.data.foo).toBe(true);
+      expect(called).toBe(true);
+      expect(retryCalled).toBe(true);
       done();
     });
   });
@@ -257,7 +313,7 @@ describe('error handling with class', () => {
             message: 'resolver blew up',
           },
         ],
-      }),
+      })
     );
 
     const link = errorLink.concat(mockLink);
@@ -389,4 +445,61 @@ describe('error handling with class', () => {
 
     setTimeout(done, 10);
   });
+
+
+  it('allows re-forwarding in the error handler', done => {
+    const query = gql`
+      query Foo {
+        foo {
+          bar
+        }
+      }
+    `;
+
+    let called;
+    let retryCalled;
+    const errorLink = new ErrorLink(
+      ({ graphQLErrors, response, operation, forward }) => {
+        if (!called) {
+          called = true;
+          expect(graphQLErrors[0].message).toBe('resolver blew up');
+          expect(response.data).not.toBeDefined();
+          expect(operation.operationName).toBe('Foo');
+          expect(operation.getContext().bar).toBe(true);
+          return forward(operation);
+        } else {
+          retryCalled = true;
+          expect(response.data.foo).toBe(true);
+        }
+      }
+    );
+
+    const mockLink = new ApolloLink(operation =>
+      Observable.of(
+        // original response with errors
+        {
+          errors: [
+            {
+              message: 'resolver blew up',
+            },
+          ],
+        },
+        // simulate a second response after retrying
+        {
+          data: { foo: true },
+          errors: [],
+        }
+      )
+    );
+
+    const link = errorLink.concat(mockLink);
+
+    execute(link, { query, context: { bar: true } }).subscribe(result => {
+      expect(result.data.foo).toBe(true);
+      expect(called).toBe(true);
+      expect(retryCalled).toBe(true);
+      done();
+    });
+  });
+
 });
