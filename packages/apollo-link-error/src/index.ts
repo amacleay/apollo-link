@@ -105,7 +105,7 @@ export class ErrorLink extends ApolloLink {
 
   public request(
     operation: Operation,
-    forward: NextLink,
+    forward: NextLink
   ): Observable<FetchResult> | null {
     return this.link.request(operation, forward);
   }
