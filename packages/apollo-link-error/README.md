@@ -41,16 +41,17 @@ A `networkError` can contain additional fields, such as a GraphQL object in the 
 
 <h2 id="error-categories">Retrying failed requests</h2>
 
-An error handler might want to do more than just logging errors. For example, when using some form of token based authentication, there is a need to handle re-authentication when the token expires. You will be able to do this with `apollo-link-error` by retrying the request using `return forward(operation)`.
+An error handler might want to do more than just logging errors. You can check for a certain failure condition or error code, and retry the request if rectifying the error is possible. For example, when using some form of token based authentication, there is a need to handle re-authentication when the token expires. Here is an example of how to do this using `foward()`.
 ```js
 onError(({ graphQLErrors, networkError, operation, forward }) => {
     if (graphQLErrors) {
       for (let err of graphQLErrors) {
-
         switch (err.extensions.code) {
-          case 'UNAUTHENTICATED':
+          case 'UNAUTHENTICATED': 
+            // error code is set to UNAUTHENTICATED 
+            // when AuthenticationError thrown in resolver
             
-            // modify the operation context with new token
+            // modify the operation context with a new token
             const oldHeaders = operation.getContext().headers;
             operation.setContext({
               headers: {
@@ -58,11 +59,9 @@ onError(({ graphQLErrors, networkError, operation, forward }) => {
                 authorization: getNewToken(),
               },
             });
-            
-            // retry the request
+            // retry the request, returning the new observable
             return forward(operation);
         }
-        
       }
     }
     if (networkError) {
